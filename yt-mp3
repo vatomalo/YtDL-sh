@@ -1,7 +1,35 @@
 #!/bin/bash
+set -e
+
+echo "▶ Checking yt-dlp version..."
+yt-dlp -U || true
+
 url="$1"
 if [ -z "$url" ]; then
   read -p "Input YouTube URL: " url
 fi
-yt-dlp -x --audio-format mp3 --audio-quality 0 \
--o "%(playlist_title)s/%(playlist_index)s - %(title)s.%(ext)s" "$url"
+
+echo "▶ Checking for chapters..."
+has_chapters=$(yt-dlp --print "%(chapters)s" "$url" 2>/dev/null)
+
+if [[ "$has_chapters" != "None" && -n "$has_chapters" ]]; then
+  echo "▶ Chapters detected → splitting into multiple MP3s"
+
+  yt-dlp -x \
+    --audio-format mp3 \
+    --audio-quality 0 \
+    --split-chapters \
+    --force-keyframes-at-cuts \
+    -o "%(title)s/%(section_number)02d - %(section_title)s.%(ext)s" \
+    "$url"
+
+else
+  echo "▶ No chapters → single file"
+
+  yt-dlp -x \
+    --audio-format mp3 \
+    --audio-quality 0 \
+    -o "%(title)s.%(ext)s" \
+    "$url"
+fi
+
